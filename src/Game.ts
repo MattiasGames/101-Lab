@@ -24,65 +24,57 @@ export class Game {
   started = false;
   paused = false;
 
+  viewModel!: THREE.Mesh;
+
   start() {
-    console.log("Game starting...");
-    
-    try {
-      const canvas = document.getElementById('app') as HTMLCanvasElement;
-      this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    const canvas = document.getElementById('app') as HTMLCanvasElement;
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.shadowMap.enabled = true;
+
+    this.scene = new THREE.Scene();
+    this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.05, 500);
+    this.scene.add(this.camera); // Add camera to scene so view model renders
+
+    // Create a simple cube to act as the weapon view model
+    const boxGeo = new THREE.BoxGeometry(0.1, 0.1, 0.4);
+    const boxMat = new THREE.MeshStandardMaterial({ color: 0x888888, emissive: 0x222222 });
+    this.viewModel = new THREE.Mesh(boxGeo, boxMat);
+    this.viewModel.position.set(0.25, -0.2, -0.5); // Bottom right
+    this.camera.add(this.viewModel);
+
+    this.phys = new PhysicsWorld();
+    buildMap(this.scene, this.phys);
+
+    this.slots = new WeaponSlots();
+    this.ragdolls = new RagdollManager(this.phys, this.scene);
+    this.weapons = new WeaponHandler(this.phys, this.ragdolls);
+    this.fps = new FPSController(this.camera, this.phys);
+    this.interaction = new Interaction(this.phys, this.ragdolls, this.slots, this.weapons, this.fps);
+
+    this.ragdolls.spawn(new CANNON.Vec3(0, 2, -3));
+    this.ragdolls.spawn(new CANNON.Vec3(2, 2, -4));
+
+    new StartMenu(this.slots, () => {
+      this.started = true;
+      document.getElementById('menu')!.style.display = 'none';
+      document.getElementById('hud')!.style.display = 'block';
+      document.getElementById('crosshair')!.style.display = 'block';
+      initHUD(this.slots);
+      refreshHUD();
+      document.body.requestPointerLock();
+    });
+
+    this.bindEvents();
+
+    window.addEventListener('resize', () => {
+      this.camera.aspect = window.innerWidth / window.innerHeight;
+      this.camera.updateProjectionMatrix();
       this.renderer.setSize(window.innerWidth, window.innerHeight);
-      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      this.renderer.shadowMap.enabled = true;
-      this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    });
 
-      this.scene = new THREE.Scene();
-      this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.05, 500);
-
-      this.phys = new PhysicsWorld();
-      buildMap(this.scene, this.phys);
-
-      this.slots = new WeaponSlots();
-      this.ragdolls = new RagdollManager(this.phys, this.scene);
-      this.weapons = new WeaponHandler(this.phys, this.ragdolls);
-      this.fps = new FPSController(this.camera, this.phys);
-      this.interaction = new Interaction(this.phys, this.ragdolls, this.slots, this.weapons, this.fps);
-
-      this.ragdolls.spawn(new CANNON.Vec3(0, 2, -3));
-
-      console.log("Initializing Menu...");
-      new StartMenu(this.slots, () => {
-        console.log("Start button clicked!");
-        this.started = true;
-        
-        const menu = document.getElementById('menu');
-        if (menu) menu.style.display = 'none';
-        
-        const hud = document.getElementById('hud');
-        if (hud) hud.style.display = 'block';
-        
-        const crosshair = document.getElementById('crosshair');
-        if (crosshair) crosshair.style.display = 'block';
-        
-        initHUD(this.slots);
-        refreshHUD();
-        
-        document.body.requestPointerLock();
-      });
-
-      this.bindEvents();
-
-      window.addEventListener('resize', () => {
-        this.camera.aspect = window.innerWidth / window.innerHeight;
-        this.camera.updateProjectionMatrix();
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
-      });
-
-      this.loop();
-      console.log("Game started successfully.");
-    } catch (error) {
-      console.error("CRITICAL ERROR during startup:", error);
-      alert("Game crashed! Check the console (F12) or look at the error in the code.");
-    }
+    this.loop();
   }
 
   bindEvents() {
@@ -119,6 +111,13 @@ export class Game {
         const n = parseInt(digit[1]) - 1;
         this.slots.select(n);
         refreshHUD();
+        
+        // Change view model color based on selected slot
+        if (this.slots.current()) {
+          this.viewModel.material = new THREE.MeshStandardMaterial({ color: 0x7cf, emissive: 0x115577 });
+        } else {
+          this.viewModel.material = new THREE.MeshStandardMaterial({ color: 0xd9a86a, emissive: 0x221100 }); // Skin tone for hands
+        }
       }
     });
   }
