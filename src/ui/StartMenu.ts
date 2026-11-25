@@ -17,11 +17,16 @@ export class StartMenu {
     const slotList = document.getElementById('slotList')!;
     const weaponList = document.getElementById('weaponList')!;
 
-    // Load saved loadout
+    // Load saved loadout (safely)
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) this.slots.loadFrom(JSON.parse(saved));
-    } catch {}
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) this.slots.loadFrom(parsed);
+      }
+    } catch (e) {
+      console.warn("Could not load saved loadout");
+    }
 
     slotList.innerHTML = '';
     for (let i = 0; i < 9; i++) {
@@ -36,6 +41,7 @@ export class StartMenu {
 
       const select = document.createElement('select');
       select.disabled = i === 8;
+      
       const noneOpt = document.createElement('option');
       noneOpt.value = '';
       noneOpt.textContent = '— Empty (Hand / Punch / Grab) —';
@@ -55,6 +61,8 @@ export class StartMenu {
           if (this.slots.slots[i]?.id === w.id) opt.selected = true;
           select.appendChild(opt);
         }
+        
+        // Save when changed
         select.addEventListener('change', () => {
           this.slots.assign(i, select.value === '' ? null : select.value);
           this.persist();
@@ -87,16 +95,19 @@ export class StartMenu {
     `;
     weaponList.appendChild(rg);
 
-    document.getElementById('startBtn')!.addEventListener('click', () => {
-      this.persist();
-      document.getElementById('menu')!.style.display = 'none';
-      this.onStart();
-    });
+    // Attach the start button event
+    const startBtn = document.getElementById('startBtn');
+    if (startBtn) {
+      startBtn.onclick = () => {
+        this.persist();
+        this.onStart();
+      };
+    }
   }
 
   persist() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.slots.toJSON()));
-    } catch {}
+    } catch (e) {}
   }
 }
