@@ -17,7 +17,7 @@ export function refreshHUD() {
   const parts: string[] = [];
   for (let i = 0; i < 9; i++) {
     const w = slotsRef.slots[i];
-    const label = w ? w.name : (i === 8 ? '?' : 'Hand');
+    const label = w ? w.name : (i === 8 ? 'Ragdoll Gun' : 'Hand');
     const active = i === slotsRef.currentSlot ? ' active' : '';
     parts.push(`<span class="slot${active}">${i + 1}: ${label}</span>`);
   }
