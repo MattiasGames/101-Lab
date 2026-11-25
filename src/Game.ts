@@ -23,7 +23,6 @@ export class Game {
   clock = new THREE.Clock();
   started = false;
   paused = false;
-  lastSlotKey = -1;
 
   start() {
     const canvas = document.getElementById('app') as HTMLCanvasElement;
@@ -45,12 +44,11 @@ export class Game {
     this.fps = new FPSController(this.camera, this.phys);
     this.interaction = new Interaction(this.phys, this.ragdolls, this.slots, this.weapons, this.fps);
 
-    // Initial ragdoll to demonstrate
+    // Initial ragdolls to demonstrate
     this.ragdolls.spawn(new CANNON.Vec3(0, 2, -3));
     this.ragdolls.spawn(new CANNON.Vec3(3, 2, -5));
     this.ragdolls.spawn(new CANNON.Vec3(-3, 2, -5));
 
-    // Menu
     new StartMenu(this.slots, () => {
       this.started = true;
       initHUD(this.slots);
@@ -89,18 +87,21 @@ export class Game {
       if (e.button === 0) this.interaction.onLeftDown();
       if (e.button === 2) this.interaction.onRightDown();
     });
+    
     window.addEventListener('mouseup', e => {
       if (e.button === 2) this.interaction.onRightUp();
     });
     window.addEventListener('contextmenu', e => e.preventDefault());
 
     window.addEventListener('keydown', e => {
-      if (!document.pointerLockElement) return;
+      if (!this.started || this.paused) return;
+      
+      // Check for numbers 1-9
       const digit = e.code.match(/^Digit([1-9])$/);
       if (digit) {
         const n = parseInt(digit[1]) - 1;
         this.slots.select(n);
-        refreshHUD();
+        refreshHUD(); // Make sure the bottom left updates
       }
     });
   }
