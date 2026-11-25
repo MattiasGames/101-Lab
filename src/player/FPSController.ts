@@ -33,4 +33,50 @@ export class FPSController {
       if (document.pointerLockElement) {
         this.yaw -= e.movementX * 0.0022;
         this.pitch -= e.movementY * 0.0022;
-        this.pitch = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, this.pitch
+        this.pitch = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, this.pitch));
+      }
+    });
+  }
+
+  update(_dt: number) {
+    const from = this.body.position;
+    const to = new CANNON.Vec3(from.x, from.y - 0.55, from.z);
+    const ray = new CANNON.Ray(from, to);
+    ray.skipBackfaces = true;
+    const res = new CANNON.RaycastResult();
+    ray.intersectWorld(this.body.world as any, { result: res, skipBackfaces: true });
+    this.onGround = res.hasHit && res.body !== this.body;
+
+    const forward = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
+    const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
+    const move = new THREE.Vector3();
+    if (this.keys.has('KeyW')) move.add(forward);
+    if (this.keys.has('KeyS')) move.sub(forward);
+    if (this.keys.has('KeyD')) move.add(right);
+    if (this.keys.has('KeyA')) move.sub(right);
+
+    if (move.lengthSq() > 0) move.normalize();
+    const targetVX = move.x * this.speed;
+    const targetVZ = move.z * this.speed;
+
+    this.body.velocity.x += (targetVX - this.body.velocity.x) * 0.25;
+    this.body.velocity.z += (targetVZ - this.body.velocity.z) * 0.25;
+
+    if (this.keys.has('Space') && this.onGround) {
+      this.body.velocity.y = this.jumpForce;
+    }
+
+    this.camera.position.set(
+      this.body.position.x,
+      this.body.position.y + this.eyeHeight - 0.4,
+      this.body.position.z
+    );
+    this.camera.quaternion.setFromEuler(new THREE.Euler(this.pitch, this.yaw, 0, 'YXZ'));
+  }
+
+  getForward(): THREE.Vector3 {
+    const f = new THREE.Vector3(0, 0, -1);
+    f.applyQuaternion(this.camera.quaternion);
+    return f;
+  }
+}
