@@ -11,19 +11,17 @@ export class FPSController {
   keys: Set<string> = new Set();
   speed = 8;
   jumpForce = 10;
-  eyeHeight = 1.65;
 
   constructor(camera: THREE.PerspectiveCamera, phys: PhysicsWorld) {
     this.camera = camera;
 
-    const shape = new CANNON.Sphere(0.4);
+    const shape = new CANNON.Sphere(0.5);
     this.body = new CANNON.Body({
       mass: 70,
       shape,
-      // Spawn high up to guarantee we drop into the map
       position: new CANNON.Vec3(0, 5, 8),
       material: phys.environmentMaterial,
-      linearDamping: 0.9, // Ground friction
+      linearDamping: 0.9, 
       fixedRotation: true,
     });
     phys.world.addBody(this.body);
@@ -40,15 +38,8 @@ export class FPSController {
   }
 
   update(_dt: number) {
-    const from = this.body.position;
-    // Raycast down to check for ground
-    const to = new CANNON.Vec3(from.x, from.y - 0.45, from.z);
-    const ray = new CANNON.Ray(from, to);
-    const res = new CANNON.RaycastResult();
-    ray.intersectWorld(this.body.world as any, { result: res, skipBackfaces: true });
-    
-    // Ensure we don't hit ourselves
-    this.onGround = res.hasHit && res.body !== this.body;
+    // Force constant downward pull to keep the player anchored
+    this.body.applyForce(new CANNON.Vec3(0, -200, 0), this.body.position);
 
     const forward = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
     const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
@@ -60,18 +51,15 @@ export class FPSController {
     if (this.keys.has('KeyA')) move.sub(right);
 
     if (move.lengthSq() > 0) move.normalize();
-    const targetVX = move.x * this.speed;
-    const targetVZ = move.z * this.speed;
+    
+    // Directly set horizontal velocity instead of lerping
+    this.body.velocity.x = move.x * this.speed;
+    this.body.velocity.z = move.z * this.speed;
 
-    // Apply movement
-    this.body.velocity.x += (targetVX - this.body.velocity.x) * 0.25;
-    this.body.velocity.z += (targetVZ - this.body.velocity.z) * 0.25;
-
-    if (this.keys.has('Space') && this.onGround) {
+    if (this.keys.has('Space') && Math.abs(this.body.velocity.y) < 0.1) {
       this.body.velocity.y = this.jumpForce;
     }
 
-    // FIX: Offset camera upward so we can see over the sphere
     this.camera.position.set(
       this.body.position.x,
       this.body.position.y + 0.5, 
