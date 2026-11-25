@@ -26,7 +26,11 @@ export class RagdollManager {
     if (this.items.length >= MAX_RAGDOLLS) {
       this.removeOldest();
     }
-    const ragdoll = createRagdoll(this.phys, this.scene, pos);
+    
+    // FIX: Spawn slightly higher so they don't clip into the floor and explode
+    const safePos = new CANNON.Vec3(pos.x, pos.y + 1.5, pos.z);
+    
+    const ragdoll = createRagdoll(this.phys, this.scene, safePos);
     const controller = new RagdollController(ragdoll);
     const item = { ragdoll, controller };
     this.items.push(item);
@@ -53,25 +57,9 @@ export class RagdollManager {
     for (const item of this.items) {
       item.controller.update(dt);
       syncRagdollMeshes(item.ragdoll);
-      if (item.ragdoll.hitFlash > 0) {
-        item.ragdoll.hitFlash -= dt;
-        const flash = item.ragdoll.hitFlash > 0 ? 0xff4444 : null;
-        for (const p of Object.values(item.ragdoll.parts)) {
-          const mat = p.mesh.material as THREE.MeshStandardMaterial;
-          if (flash !== null) {
-            if (!mat.userData._origColor) mat.userData._origColor = mat.color.getHex();
-            mat.emissive.setHex(0xff2222);
-            mat.emissiveIntensity = 0.6;
-          } else {
-            mat.emissiveIntensity = 0;
-            if (mat.userData._origColor !== undefined) mat.color.setHex(mat.userData._origColor);
-          }
-        }
-      }
     }
   }
 
-  // Find which ragdoll owns a given body
   findOwner(body: CANNON.Body): ManagedRagdoll | null {
     for (const item of this.items) {
       if (item.ragdoll.bodies.includes(body)) return item;
