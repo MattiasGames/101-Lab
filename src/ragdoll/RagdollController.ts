@@ -1,9 +1,9 @@
 import * as CANNON from 'cannon-es';
 import { Ragdoll } from './RagdollFactory';
 
-const KP = 140;
-const KD = 18;
-const MAX_TORQUE = 90;
+const KP = 400;
+const KD = 40;
+const MAX_TORQUE = 500;
 
 export class RagdollController {
   ragdoll: Ragdoll;
@@ -48,32 +48,40 @@ export class RagdollController {
     const strength = this.staggerTimer > 0 ? 0.35 : 1.0;
     this.applyUprightTorque(pelvis, strength);
 
+    // Dampen leg movement so they act as stands instead of slipping
     const lLeg = this.ragdoll.parts.lLeg.body;
     const rLeg = this.ragdoll.parts.rLeg.body;
-    const footDamp = 0.6;
+    const footDamp = 0.9;
     lLeg.angularVelocity.scale(footDamp, lLeg.angularVelocity);
     rLeg.angularVelocity.scale(footDamp, rLeg.angularVelocity);
+    lLeg.velocity.x *= 0.5;
+    rLeg.velocity.x *= 0.5;
+    lLeg.velocity.z *= 0.5;
+    rLeg.velocity.z *= 0.5;
   }
 
   private applyUprightTorque(body: CANNON.Body, strength: number) {
-    const current = body.quaternion;
-    const q = new CANNON.Quaternion(current.x, current.y, current.z, current.w);
-    q.conjugate(q);
-    const w = Math.max(-1, Math.min(1, q.w));
-    const angle = 2 * Math.acos(w);
-    let sx = q.x, sy = q.y, sz = q.z;
-    const sinHalf = Math.sqrt(1 - w * w);
-    if (sinHalf > 1e-5) {
-      sx /= sinHalf; sy /= sinHalf; sz /= sinHalf;
-    }
-    const errX = sx * angle;
-    const errZ = sz * angle;
+    // Get current orientation
+    const q = body.quaternion;
+    
+    // Calculate error to Y-Up
+    // We want to align the body's local Up (0,1,0) with world Up (0,1,0)
+    const up = new CANNON.Vec3(0, 1, 0);
+    const localUp = q.vmult(new CANNON.Vec3(0, 1, 0));
+    
+    // Cross product gives the axis of rotation needed to align them
+    const axis = localUp.cross(up);
+    const angle = Math.acos(Math.max(-1, Math.min(1, localUp.dot(up))));
+    
     const angVel = body.angularVelocity;
-    const tx = (errX * KP - angVel.x * KD) * strength;
-    const tz = (errZ * KP - angVel.z * KD) * strength;
+    
+    // PD Control
+    const torqueX = (axis.x * angle * KP - angVel.x * KD) * strength;
+    const torqueZ = (axis.z * angle * KP - angVel.z * KD) * strength;
+    
     const clamp = (v: number) => Math.max(-MAX_TORQUE, Math.min(MAX_TORQUE, v));
-    body.torque.x += clamp(tx);
-    body.torque.z += clamp(tz);
+    body.torque.x += clamp(torqueX);
+    body.torque.z += clamp(torqueZ);
     body.torque.y += -angVel.y * KD * 0.5 * strength;
   }
 
