@@ -9,20 +9,21 @@ export class FPSController {
   pitch = 0;
   onGround = false;
   keys: Set<string> = new Set();
-  speed = 7;
-  jumpForce = 8;
+  speed = 8;
+  jumpForce = 10;
   eyeHeight = 1.65;
 
   constructor(camera: THREE.PerspectiveCamera, phys: PhysicsWorld) {
     this.camera = camera;
 
+    // Sphere radius 0.4. We spawn it high so it falls safely.
     const shape = new CANNON.Sphere(0.4);
     this.body = new CANNON.Body({
       mass: 70,
       shape,
-      position: new CANNON.Vec3(0, 2, 5),
+      position: new CANNON.Vec3(0, 3, 5),
       material: phys.environmentMaterial,
-      linearDamping: 0.9,
+      linearDamping: 0.5, // Lowered from 0.9 so we can actually move
       fixedRotation: true,
     });
     phys.world.addBody(this.body);
@@ -40,16 +41,18 @@ export class FPSController {
 
   update(_dt: number) {
     const from = this.body.position;
-    const to = new CANNON.Vec3(from.x, from.y - 0.55, from.z);
+    const to = new CANNON.Vec3(from.x, from.y - 0.5, from.z);
     const ray = new CANNON.Ray(from, to);
-    ray.skipBackfaces = true;
     const res = new CANNON.RaycastResult();
     ray.intersectWorld(this.body.world as any, { result: res, skipBackfaces: true });
+    
+    // Make sure we don't accidentally detect our own body!
     this.onGround = res.hasHit && res.body !== this.body;
 
     const forward = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
     const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
     const move = new THREE.Vector3();
+    
     if (this.keys.has('KeyW')) move.add(forward);
     if (this.keys.has('KeyS')) move.sub(forward);
     if (this.keys.has('KeyD')) move.add(right);
@@ -59,13 +62,15 @@ export class FPSController {
     const targetVX = move.x * this.speed;
     const targetVZ = move.z * this.speed;
 
-    this.body.velocity.x += (targetVX - this.body.velocity.x) * 0.25;
-    this.body.velocity.z += (targetVZ - this.body.velocity.z) * 0.25;
+    // Apply movement force
+    this.body.velocity.x += (targetVX - this.body.velocity.x) * 0.3;
+    this.body.velocity.z += (targetVZ - this.body.velocity.z) * 0.3;
 
     if (this.keys.has('Space') && this.onGround) {
       this.body.velocity.y = this.jumpForce;
     }
 
+    // Update camera position
     this.camera.position.set(
       this.body.position.x,
       this.body.position.y + this.eyeHeight - 0.4,
