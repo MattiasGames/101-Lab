@@ -16,14 +16,14 @@ export class FPSController {
   constructor(camera: THREE.PerspectiveCamera, phys: PhysicsWorld) {
     this.camera = camera;
 
-    // Sphere radius 0.4. We spawn it high so it falls safely.
     const shape = new CANNON.Sphere(0.4);
     this.body = new CANNON.Body({
       mass: 70,
       shape,
-      position: new CANNON.Vec3(0, 3, 5),
+      // Spawn high up to guarantee we drop into the map
+      position: new CANNON.Vec3(0, 5, 8),
       material: phys.environmentMaterial,
-      linearDamping: 0.5, // Lowered from 0.9 so we can actually move
+      linearDamping: 0.9, // Ground friction
       fixedRotation: true,
     });
     phys.world.addBody(this.body);
@@ -41,12 +41,13 @@ export class FPSController {
 
   update(_dt: number) {
     const from = this.body.position;
-    const to = new CANNON.Vec3(from.x, from.y - 0.5, from.z);
+    // Raycast down to check for ground
+    const to = new CANNON.Vec3(from.x, from.y - 0.45, from.z);
     const ray = new CANNON.Ray(from, to);
     const res = new CANNON.RaycastResult();
     ray.intersectWorld(this.body.world as any, { result: res, skipBackfaces: true });
     
-    // Make sure we don't accidentally detect our own body!
+    // Ensure we don't hit ourselves
     this.onGround = res.hasHit && res.body !== this.body;
 
     const forward = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
@@ -62,18 +63,18 @@ export class FPSController {
     const targetVX = move.x * this.speed;
     const targetVZ = move.z * this.speed;
 
-    // Apply movement force
-    this.body.velocity.x += (targetVX - this.body.velocity.x) * 0.3;
-    this.body.velocity.z += (targetVZ - this.body.velocity.z) * 0.3;
+    // Apply movement
+    this.body.velocity.x += (targetVX - this.body.velocity.x) * 0.25;
+    this.body.velocity.z += (targetVZ - this.body.velocity.z) * 0.25;
 
     if (this.keys.has('Space') && this.onGround) {
       this.body.velocity.y = this.jumpForce;
     }
 
-    // Update camera position
+    // FIX: Offset camera upward so we can see over the sphere
     this.camera.position.set(
       this.body.position.x,
-      this.body.position.y + this.eyeHeight - 0.4,
+      this.body.position.y + 0.5, 
       this.body.position.z
     );
     this.camera.quaternion.setFromEuler(new THREE.Euler(this.pitch, this.yaw, 0, 'YXZ'));
