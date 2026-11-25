@@ -25,45 +25,64 @@ export class Game {
   paused = false;
 
   start() {
-    const canvas = document.getElementById('app') as HTMLCanvasElement;
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-    this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.05, 500);
-
-    this.phys = new PhysicsWorld();
-    buildMap(this.scene, this.phys);
-
-    this.slots = new WeaponSlots();
-    this.ragdolls = new RagdollManager(this.phys, this.scene);
-    this.weapons = new WeaponHandler(this.phys, this.ragdolls);
-    this.fps = new FPSController(this.camera, this.phys);
-    this.interaction = new Interaction(this.phys, this.ragdolls, this.slots, this.weapons, this.fps);
-
-    // Initial ragdolls to demonstrate
-    this.ragdolls.spawn(new CANNON.Vec3(0, 2, -3));
-    this.ragdolls.spawn(new CANNON.Vec3(3, 2, -5));
-    this.ragdolls.spawn(new CANNON.Vec3(-3, 2, -5));
-
-    new StartMenu(this.slots, () => {
-      this.started = true;
-      initHUD(this.slots);
-      document.body.requestPointerLock();
-    });
-
-    this.bindEvents();
-
-    window.addEventListener('resize', () => {
-      this.camera.aspect = window.innerWidth / window.innerHeight;
-      this.camera.updateProjectionMatrix();
+    console.log("Game starting...");
+    
+    try {
+      const canvas = document.getElementById('app') as HTMLCanvasElement;
+      this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
       this.renderer.setSize(window.innerWidth, window.innerHeight);
-    });
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      this.renderer.shadowMap.enabled = true;
+      this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-    this.loop();
+      this.scene = new THREE.Scene();
+      this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.05, 500);
+
+      this.phys = new PhysicsWorld();
+      buildMap(this.scene, this.phys);
+
+      this.slots = new WeaponSlots();
+      this.ragdolls = new RagdollManager(this.phys, this.scene);
+      this.weapons = new WeaponHandler(this.phys, this.ragdolls);
+      this.fps = new FPSController(this.camera, this.phys);
+      this.interaction = new Interaction(this.phys, this.ragdolls, this.slots, this.weapons, this.fps);
+
+      this.ragdolls.spawn(new CANNON.Vec3(0, 2, -3));
+
+      console.log("Initializing Menu...");
+      new StartMenu(this.slots, () => {
+        console.log("Start button clicked!");
+        this.started = true;
+        
+        const menu = document.getElementById('menu');
+        if (menu) menu.style.display = 'none';
+        
+        const hud = document.getElementById('hud');
+        if (hud) hud.style.display = 'block';
+        
+        const crosshair = document.getElementById('crosshair');
+        if (crosshair) crosshair.style.display = 'block';
+        
+        initHUD(this.slots);
+        refreshHUD();
+        
+        document.body.requestPointerLock();
+      });
+
+      this.bindEvents();
+
+      window.addEventListener('resize', () => {
+        this.camera.aspect = window.innerWidth / window.innerHeight;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      this.loop();
+      console.log("Game started successfully.");
+    } catch (error) {
+      console.error("CRITICAL ERROR during startup:", error);
+      alert("Game crashed! Check the console (F12) or look at the error in the code.");
+    }
   }
 
   bindEvents() {
@@ -95,13 +114,11 @@ export class Game {
 
     window.addEventListener('keydown', e => {
       if (!this.started || this.paused) return;
-      
-      // Check for numbers 1-9
       const digit = e.code.match(/^Digit([1-9])$/);
       if (digit) {
         const n = parseInt(digit[1]) - 1;
         this.slots.select(n);
-        refreshHUD(); // Make sure the bottom left updates
+        refreshHUD();
       }
     });
   }
