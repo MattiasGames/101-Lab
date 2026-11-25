@@ -7,8 +7,16 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; color: #e6e6e6; }
     #app { width: 100vw; height: 100vh; display: block; }
+    #crosshair { position: fixed; left: 50%; top: 50%; width: 20px; height: 20px; margin: -10px 0 0 -10px; pointer-events: none; z-index: 10; display: none; }
+    #crosshair::before, #crosshair::after { content: ''; position: absolute; background: rgba(255,255,255,0.85); }
+    #crosshair::before { left: 9px; top: 2px; width: 2px; height: 16px; }
+    #crosshair::after { top: 9px; left: 2px; height: 2px; width: 16px; }
+    #hud { position: fixed; left: 20px; bottom: 20px; z-index: 10; font-size: 14px; line-height: 1.6; text-shadow: 0 0 4px #000; pointer-events: none; display: none; }
+    #hud .slot { display: inline-block; padding: 4px 10px; margin-right: 4px; border: 1px solid #555; border-radius: 4px; background: rgba(0,0,0,0.4); }
+    #hud .slot.active { border-color: #7cf; color: #7cf; background: rgba(0,80,120,0.4); }
+    #msg { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%); color: #7cf; z-index: 10; font-size: 14px; pointer-events: none; opacity: 0; transition: opacity 0.3s; }
     #menu { position: fixed; inset: 0; background: radial-gradient(circle at 50% 40%, #1b2838, #05080d); z-index: 100; display: flex; padding: 40px; gap: 30px; }
-    #menu.hidden { display: none; }
+    #menu.hidden { display: none !important; }
     #menu h1 { font-size: 42px; letter-spacing: 4px; color: #7cf; margin-bottom: 6px; }
     #menu .sub { color: #889; margin-bottom: 20px; font-size: 13px; letter-spacing: 2px; }
     #menu .col { flex: 1; overflow-y: auto; }
@@ -22,10 +30,16 @@
     .weaponCard .stats { font-size: 12px; color: #889; }
     #startBtn { margin-top: 20px; width: 100%; padding: 14px; background: #1c6; border: none; color: #000; font-weight: bold; letter-spacing: 3px; cursor: pointer; border-radius: 4px; font-size: 16px; }
     #startBtn:hover { background: #2e8; }
+    #pause { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 50; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 20px; }
+    #pause.show { display: flex; }
+    #pause h2 { font-size: 32px; letter-spacing: 4px; color: #7cf; }
   </style>
 </head>
 <body>
   <canvas id="app"></canvas>
+  <div id="crosshair"></div>
+  <div id="hud"></div>
+  <div id="msg"></div>
   
   <div id="menu">
     <div class="col">
@@ -36,52 +50,12 @@
     </div>
     <div class="col">
       <h2>WEAPON LIBRARY</h2>
-      <div id="weaponList">
-        <div class="weaponCard"><div class="name">Pistol</div><div class="stats">RANGED • DMG 25</div></div>
-        <div class="weaponCard"><div class="name">SMG</div><div class="stats">RANGED • DMG 14</div></div>
-        <div class="weaponCard"><div class="name">Shotgun</div><div class="stats">RANGED • DMG 12</div></div>
-        <div class="weaponCard"><div class="name">Assault Rifle</div><div class="stats">RANGED • DMG 20</div></div>
-        <div class="weaponCard"><div class="name">Sniper</div><div class="stats">RANGED • DMG 90</div></div>
-        <div class="weaponCard"><div class="name">Baseball Bat</div><div class="stats">MELEE • DMG 30</div></div>
-        <div class="weaponCard"><div class="name">Katana</div><div class="stats">MELEE • DMG 55</div></div>
-        <div class="weaponCard"><div class="name">Sledgehammer</div><div class="stats">MELEE • DMG 70</div></div>
-        <div class="weaponCard" style="border-color:#7cf;"><div class="name">Ragdoll Gun (Slot 9)</div><div class="stats">SPECIAL</div></div>
-      </div>
+      <div id="weaponList"></div>
       <button id="startBtn">ENTER THE LAB</button>
     </div>
   </div>
-
-  <script>
-    // Generate Dropdowns without any TypeScript or modules
-    const slotList = document.getElementById('slotList');
-    const weapons = ["Pistol", "SMG", "Shotgun", "Assault Rifle", "Sniper", "Baseball Bat", "Katana", "Sledgehammer"];
-    
-    for (let i = 0; i < 8; i++) {
-      const row = document.createElement('div');
-      row.className = 'slotRow';
-      row.innerHTML = `<div class="num">${i + 1}</div>`;
-      const select = document.createElement('select');
-      select.innerHTML = `<option value="">— Empty —</option>` + weapons.map(w => `<option value="${w}">${w}</option>`).join('');
-      row.appendChild(select);
-      slotList.appendChild(row);
-    }
-    
-    // Add slot 9
-    const row9 = document.createElement('div');
-    row9.className = 'slotRow locked';
-    row9.innerHTML = `<div class="num">9</div><select disabled><option>Ragdoll Gun</option></select>`;
-    slotList.appendChild(row9);
-
-    // Make button work
-    document.getElementById('startBtn').onclick = () => {
-      document.getElementById('menu').classList.add('hidden');
-      alert("Menu works! The issue was in the TypeScript game files. Click OK to load the game (it might be blank if the game loop crashed).");
-      // Load the actual game
-      const script = document.createElement('script');
-      script.type = 'module';
-      script.src = '/src/main.ts';
-      document.body.appendChild(script);
-    };
-  </script>
+  
+  <div id="pause"><h2>PAUSED</h2><div style="color:#888">Click to resume</div></div>
+  <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
